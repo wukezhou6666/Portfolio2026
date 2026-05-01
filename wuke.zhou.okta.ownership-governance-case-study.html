@@ -1,0 +1,3132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ownership Validation Crawl</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:             #0D1521;
+      --text:           #EEF4FF;
+      --text-secondary: #B0C4DE;
+      --accent:         #5BA8FF;
+      --accent-warm:    #E8936A;
+      --border:         #243351;
+      --card-bg:        #131D30;
+      --muted:          #B0C4DE;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse 90% 70% at 15% 35%, #152040 0%, #0D1521 55%);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    #deck {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 80px 100px;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ── Global nav ── */
+    #btn-prev, #btn-next {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 16px;
+      opacity: 0.4;
+      transition: opacity 0.2s;
+      line-height: 1;
+      user-select: none;
+    }
+    #btn-prev:hover, #btn-next:hover { opacity: 1; }
+    #btn-prev { left: 12px; }
+    #btn-next { right: 12px; }
+
+    #counter {
+      position: fixed;
+      bottom: 20px;
+      right: 28px;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      color: var(--text-secondary);
+      opacity: 0.65;
+      z-index: 100;
+      user-select: none;
+    }
+
+    #progress {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.4s ease;
+      z-index: 100;
+    }
+
+    #pagination {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .pag-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      opacity: 0.35;
+      cursor: pointer;
+      transition: opacity 0.2s, background 0.2s, color 0.2s;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .pag-num:hover { opacity: 0.7; }
+
+    .pag-num.active {
+      background: var(--accent);
+      color: var(--bg);
+      opacity: 1;
+      font-weight: 500;
+    }
+
+    #edit-badge {
+      position: fixed;
+      bottom: 20px;
+      left: 28px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.3;
+      transition: opacity 0.2s, color 0.2s;
+      pointer-events: none;
+      z-index: 100;
+      user-select: none;
+    }
+    #edit-badge.active {
+      color: var(--accent);
+      opacity: 1;
+    }
+
+    [contenteditable="true"]:hover:not(:focus) {
+      background: rgba(91,168,255,0.05);
+      border-radius: 2px;
+      cursor: text;
+    }
+    [contenteditable="true"]:focus {
+      outline: 1px solid rgba(91,168,255,0.45);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+
+    /* ── Shared eyebrow ── */
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    /* ── Shared accent rule ── */
+    .rule {
+      width: 36px;
+      height: 1px;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── Shared slide label ── */
+    .slide-label {
+      position: absolute;
+      top: 44px;
+      left: 100px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.8;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 1: Cover
+    ──────────────────────────────────────── */
+    #slide-1 {
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      text-align: left;
+      padding: 80px 100px;
+    }
+
+    #slide-1 .s1-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: 0.8;
+    }
+
+    #slide-1 .s1-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5.5vw, 4.2rem);
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      max-width: 820px;
+      margin-top: 20px;
+    }
+
+    #slide-1 .s1-subline {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--text-secondary);
+      opacity: 0.7;
+      line-height: 1.65;
+      max-width: 600px;
+    }
+
+    #slide-1 .s1-rule {
+      width: 36px;
+      height: 1px;
+      background: var(--accent);
+      margin-top: 36px;
+    }
+
+    #slide-1 .s1-byline {
+      margin-top: 24px;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      opacity: 0.55;
+    }
+
+    #slide-1 .s1-meta {
+      position: absolute;
+      bottom: 52px;
+      left: 100px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    #slide-1 .s1-tag {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 5px 10px;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 2: Current Condition
+    ──────────────────────────────────────── */
+    #slide-2 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 64px 100px;
+    }
+
+    #slide-2 .s2-header {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 52px;
+    }
+
+    #slide-2 .s2-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    #slide-2 .s2-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      width: 100%;
+    }
+
+    #slide-2 .s2-col-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+
+    #slide-2 .s2-body {
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.75;
+      color: var(--text-secondary);
+    }
+
+    #slide-2 .s2-body strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    #slide-2 .s2-pain-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #slide-2 .s2-pain-item:last-child {
+      border-bottom: none;
+    }
+
+    #slide-2 .s2-pain-num {
+      flex-shrink: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      min-width: 80px;
+    }
+
+    #slide-2 .s2-pain-text {
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      padding-top: 4px;
+    }
+
+    #slide-2 .s2-tam-box {
+      margin-top: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 18px;
+    }
+
+    #slide-2 .s2-tam-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    #slide-2 .s2-tam-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    #slide-2 .s2-tam-desc {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 3: Root Cause
+    ──────────────────────────────────────── */
+    #slide-3, #slide-3b {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 56px 100px;
+    }
+
+    .s3-header {
+      margin-bottom: 48px;
+    }
+
+    .s3-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    .s3-cols {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 48px;
+      width: 100%;
+    }
+
+    .s3-col-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 18px;
+    }
+
+    .s3-question {
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .s3-quote {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.35;
+      padding: 14px 0 14px 18px;
+      border-left: 2px solid var(--border);
+      margin: 8px 0;
+    }
+
+    .s3-quote.accent-quote {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .s3-gap-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+
+    .s3-gap-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .s3-gap-col-head {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .s3-gap-col-head.accent {
+      color: var(--accent);
+    }
+
+    .s3-gap-item {
+      font-size: 14px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(30,42,69,0.6);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .s3-gap-item:last-child {
+      border-bottom: none;
+    }
+
+    .s3-gap-item::before {
+      content: '├─';
+      font-size: 10px;
+      color: var(--border);
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .s3-consequence {
+      margin-top: 20px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .s3-consq-item {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .s3-consq-item strong {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #D08A70;
+      margin-bottom: 5px;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 4: Strategic Approach
+    ──────────────────────────────────────── */
+    #slide-4 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 56px 100px;
+    }
+
+    #slide-4 .s4-header {
+      margin-bottom: 10px;
+    }
+
+    #slide-4 .s4-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-4 .s4-why {
+      font-size: 13px;
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      opacity: 0.7;
+      max-width: 700px;
+      margin-bottom: 44px;
+    }
+
+    #slide-4 .s4-stages {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    #slide-4 .s4-stage {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px 22px 18px;
+      position: relative;
+    }
+
+    #slide-4 .s4-stage.active-stage {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(77,158,255,0.15), 0 4px 24px rgba(77,158,255,0.08);
+    }
+
+    #slide-4 .s4-stage-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 3px;
+      margin-bottom: 14px;
+    }
+
+    #slide-4 .s4-stage.active-stage .s4-stage-badge {
+      background: rgba(77,158,255,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(77,158,255,0.25);
+    }
+
+    #slide-4 .s4-stage:not(.active-stage) .s4-stage-badge {
+      background: var(--bg);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    #slide-4 .s4-stage-name {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    #slide-4 .s4-stage.active-stage .s4-stage-name {
+      color: var(--accent);
+    }
+
+    #slide-4 .s4-stage-items {
+      list-style: none;
+    }
+
+    #slide-4 .s4-stage-items li {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 4px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    #slide-4 .s4-stage-items li::before {
+      content: '—';
+      color: var(--border);
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+
+    #slide-4 .s4-stage-timeline {
+      margin-top: 14px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.55;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    #slide-4 .s4-focus-note {
+      background: rgba(77,158,255,0.06);
+      border: 1px solid rgba(77,158,255,0.2);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    #slide-4 .s4-focus-note strong {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 5: Three Challenges
+    ──────────────────────────────────────── */
+    #slide-5 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 56px 100px;
+    }
+
+    #slide-5 .s5-header {
+      margin-bottom: 48px;
+    }
+
+    #slide-5 .s5-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-5 .s5-challenges {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 28px;
+    }
+
+    #slide-5 .s5-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+    }
+
+    #slide-5 .s5-card-num {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+      opacity: 0.7;
+    }
+
+    #slide-5 .s5-card-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    #slide-5 .s5-card-question {
+      font-size: 13px;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 10px 0 10px 14px;
+      border-left: 2px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    #slide-5 .s5-card-body {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+
+    #slide-5 .s5-insight {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      width: 100%;
+    }
+
+    #slide-5 .s5-insight strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 6: Decision #1 — Entry Point (INTERACTIVE)
+    ──────────────────────────────────────── */
+    #slide-6 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      text-align: left;
+      padding: 44px 100px 52px;
+    }
+
+    .s6-header {
+      margin-bottom: 40px;
+    }
+
+    .s6-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    .s6-body {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .s6-left {
+      flex: 0 0 30%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .s6-option {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+
+    .s6-option:hover {
+      border-color: rgba(77,158,255,0.4);
+    }
+
+    .s6-option.selected {
+      border-color: var(--accent);
+      background: rgba(77,158,255,0.05);
+    }
+
+    .s6-option.recommended {
+      border-color: rgba(77,158,255,0.3);
+    }
+
+    .s6-opt-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .s6-opt-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .s6-option.selected .s6-opt-label {
+      color: var(--accent);
+    }
+
+    .s6-rec-badge {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: rgba(77,158,255,0.12);
+      color: var(--accent);
+      border: 1px solid rgba(77,158,255,0.25);
+      border-radius: 3px;
+      padding: 2px 7px;
+    }
+
+    .s6-opt-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .s6-opt-pros-cons {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .s6-pc-group {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .s6-pc-label {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .s6-pc-label.pros { color: #10b981; }
+    .s6-pc-label.cons { color: #D08A70; }
+
+    .s6-pc-item {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .s6-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .s6-rationale {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .s6-rationale.visible {
+      display: flex;
+      animation: s6FadeIn 0.22s ease;
+    }
+
+    @keyframes s6FadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .s6-rat-head {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .s6-rat-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .s6-rat-item-num {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .s6-rat-item-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .s6-rat-item-body {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .s6-tradeoff {
+      background: rgba(201,168,80,0.05);
+      border: 1px solid rgba(201,168,80,0.2);
+      border-left: 3px solid #C9A850;
+      border-radius: 6px;
+      padding: 11px 14px;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .s6-tradeoff strong {
+      color: #C9A850;
+      font-weight: 500;
+    }
+
+    .s6-right-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      opacity: 0.35;
+    }
+
+    .s6-ph-icon {
+      font-size: 28px;
+      opacity: 0.5;
+    }
+
+    .s6-ph-text {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Screenshot thumbnail */
+    .s6-screenshot {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: zoom-in;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .s6-screenshot:hover { border-color: rgba(77,158,255,0.45); }
+    .s6-screenshot img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top left;
+      display: block;
+    }
+    .s6-screenshot img[src=""],
+    .s6-screenshot img:not([src]) {
+      display: none;
+    }
+    .s6-scr-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.25;
+    }
+    .s6-screenshot img[src=""] ~ .s6-scr-placeholder,
+    .s6-screenshot img:not([src]) ~ .s6-scr-placeholder { display: flex; }
+    .s6-screenshot img[src]:not([src=""]) ~ .s6-scr-placeholder { display: none; }
+    .s6-scr-placeholder-icon { font-size: 22px; }
+    .s6-scr-placeholder-text {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    /* Screenshot carousel */
+    .s6-scr-carousel { width: 100%; }
+    .s6-scr-slide { display: none; }
+    .s6-scr-slide.active { display: flex; }
+    .s6-scr-dots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .s6-scr-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .s6-scr-dot.active {
+      background: rgba(77,158,255,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .s6-scr-dot:hover { border-color: rgba(77,158,255,0.5); color: var(--text); }
+
+    /* Lightbox */
+    #s6-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.88);
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #s6-lightbox.open { display: flex; }
+    #s6-lightbox img {
+      max-width: 90vw;
+      max-height: 88vh;
+      border-radius: 8px;
+      box-shadow: 0 24px 72px rgba(0,0,0,0.7);
+    }
+    #s6-lightbox-close {
+      position: absolute;
+      top: 18px; right: 24px;
+      font-size: 32px;
+      color: rgba(255,255,255,0.55);
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+    #s6-lightbox-close:hover { color: rgba(255,255,255,0.9); }
+
+    /* ────────────────────────────────────────
+       SLIDE 7: Decision #2 — Scalability (INTERACTIVE)
+    ──────────────────────────────────────── */
+    #slide-7 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 80px 100px;
+    }
+
+    #slide-7b {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      text-align: left;
+      padding: 44px 100px 52px;
+    }
+
+    #slide-7 .s7-header { margin-bottom: 40px; }
+
+    #slide-7 .s7-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-7 .s7-problem-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      width: 100%;
+    }
+
+    #slide-7 .s7-problem-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    #slide-7 .s7-left-head {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    #slide-7 .s7-problem-body {
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+
+    #slide-7 .s7-problem-body strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+
+    /* ────────────────────────────────────────
+       SLIDE 8: Decision #3 — Reviewer Scope
+    ──────────────────────────────────────── */
+    #slide-8, #slide-8b {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 80px 100px;
+    }
+
+    #slide-8 .s8-header, #slide-8b .s8-header { margin-bottom: 40px; }
+
+    #slide-8 .s8-headline, #slide-8b .s8-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-8 .s8-body {
+      display: flex;
+      gap: 36px;
+      width: 100%;
+    }
+
+    #slide-8 .s8-left {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .s8-col-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #slide-8 .s8-compare {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #slide-8 .s8-compare-block {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 12px 16px;
+    }
+
+    #slide-8 .s8-compare-head {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    #slide-8 .s8-compare-head.access { color: var(--text-secondary); }
+    #slide-8 .s8-compare-head.ownership { color: var(--accent); }
+
+    #slide-8 .s8-compare-body {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    #slide-8 .s8-stakes-note {
+      background: rgba(208,138,112,0.07);
+      border: 1px solid rgba(208,138,112,0.22);
+      border-left: 3px solid #D08A70;
+      border-radius: 6px;
+      padding: 11px 14px;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    #slide-8 .s8-stakes-note strong { color: #D08A70; font-weight: 500; }
+
+    #slide-8 .s8-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #slide-8 .s8-table th,
+    #slide-8 .s8-table td {
+      padding: 11px 16px;
+      text-align: left;
+      border: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.55;
+    }
+
+    #slide-8 .s8-table thead th {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #slide-8 .s8-table thead th:first-child { border-right: none; }
+    #slide-8 .s8-table thead th.access-head { color: var(--text-secondary); }
+    #slide-8 .s8-table thead th.ownership-head { color: var(--accent); }
+
+    #slide-8 .s8-table td.row-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      white-space: nowrap;
+      width: 1%;
+      border-right-color: var(--border);
+    }
+
+    #slide-8 .s8-table tbody td {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+    }
+
+    #slide-8 .s8-table tbody td strong { color: var(--text); font-weight: 500; }
+
+    #slide-8 .s8-table tr.risk-row td {
+      background: rgba(208,138,112,0.07);
+      border-color: rgba(208,138,112,0.22);
+      color: #D08A70;
+    }
+
+    #slide-8 .s8-table tr.risk-row td strong { color: #C97050; font-weight: 500; }
+
+    #slide-8 .s8-table tr.risk-row td.row-label { color: #D08A70; }
+
+    #slide-8 .s8-right {
+      flex: 0 0 calc(58% - 36px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .s8-paths {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .s8-path {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      transition: border-color 0.15s;
+    }
+
+    .s8-path:hover { border-color: rgba(77,158,255,0.3); }
+
+    .s8-path.mvp-path { border-color: rgba(77,158,255,0.2); }
+    .s8-path.walk-path { opacity: 0.55; }
+
+    .s8-path-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .s8-path.mvp-path .s8-path-num {
+      border-color: rgba(77,158,255,0.4);
+      color: var(--accent);
+    }
+
+    .s8-path-content { flex: 1; }
+
+    .s8-path-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+    }
+
+    .s8-path.mvp-path .s8-path-label { color: var(--accent); }
+
+    .s8-path-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .s8-path-desc {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .s8-path-tag {
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 3px;
+      align-self: flex-start;
+    }
+
+    .s8-path-tag.mvp { background: rgba(77,158,255,0.1); color: var(--accent); border: 1px solid rgba(77,158,255,0.2); }
+    .s8-path-tag.walk { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+
+    .s8-dist {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .s8-dist-item {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 10px 14px;
+      text-align: center;
+    }
+
+    .s8-dist-num {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .s8-dist-label {
+      font-size: 11px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    #slide-8b .s8-path-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    #slide-8b .s8-path-row {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    #slide-8b .s8-path-row .s8-dist-item {
+      flex: 0 0 68px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 10px;
+    }
+
+    #slide-8b .s8-path-row .s8-dist-num {
+      font-size: 18px;
+    }
+
+    #slide-8b .s8-path-row .s8-path {
+      flex: 1;
+    }
+
+    .s8-principle {
+      margin-top: 16px;
+      background: rgba(77,158,255,0.05);
+      border: 1px solid rgba(77,158,255,0.15);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 11px 15px;
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .s8-principle strong { color: var(--text); font-weight: 500; }
+
+    /* ────────────────────────────────────────
+       SLIDE 9b: Reviewer Scope — Exploration
+    ──────────────────────────────────────── */
+    #slide-9b {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 80px 100px;
+    }
+
+    #slide-9b .s9b-header { margin-bottom: 24px; }
+
+    #slide-9b .s9b-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-9b .s9b-intro {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 28px;
+      max-width: 700px;
+    }
+
+    #slide-9b .s9b-intro strong { color: var(--text); font-weight: 500; }
+
+    .s9b-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .s9b-table th,
+    .s9b-table td {
+      padding: 12px 18px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .s9b-table thead th {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .s9b-table tbody td {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+    }
+
+    .s9b-table tbody td:first-child {
+      color: var(--text);
+      font-weight: 400;
+      font-size: 13px;
+    }
+
+    .s9b-table tbody tr:last-child td { border-bottom: none; }
+
+    .s9b-table tbody tr.s9b-rec {
+      background: rgba(91,168,255,0.05);
+    }
+
+    .s9b-table tbody tr.s9b-rec td:first-child {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .v-pos  { color: var(--accent); font-weight: 400; }
+    .v-mid  { color: var(--text-secondary); }
+    .v-neg  { color: var(--accent-warm); font-weight: 400; }
+
+    /* ── Slide 9b: Accordion ── */
+    .s9b-table tbody tr.s9b-row {
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .s9b-table tbody tr.s9b-row:hover { background: rgba(255,255,255,0.025); }
+    .s9b-table tbody tr.s9b-row.s9b-rec:hover { background: rgba(91,168,255,0.08); }
+
+    .s9b-chevron {
+      display: inline-block;
+      width: 11px; height: 11px;
+      margin-right: 7px;
+      vertical-align: middle;
+      color: var(--text-secondary);
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+    .s9b-row.open .s9b-chevron { transform: rotate(90deg); color: var(--accent); }
+
+    .s9b-detail td {
+      padding: 0;
+      border-bottom: none;
+      vertical-align: top;
+    }
+    .s9b-detail.open td { border-bottom: 1px solid var(--border); }
+
+    .s9b-detail-inner {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease;
+      border-top: 1px solid transparent;
+    }
+    .s9b-detail.open .s9b-detail-inner {
+      max-height: 300px;
+      border-top-color: var(--border);
+    }
+
+    .s9b-detail-section {
+      padding: 14px 18px;
+      border-right: 1px solid var(--border);
+    }
+    .s9b-detail-section:last-child { border-right: none; }
+
+    .s9b-detail-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .s9b-detail-pros .s9b-detail-label { color: var(--accent); }
+    .s9b-detail-cons .s9b-detail-label { color: var(--accent-warm); }
+
+    .s9b-detail-section p,
+    .s9b-detail-section ul {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .s9b-detail-section ul { padding-left: 14px; }
+    .s9b-detail-section li + li { margin-top: 3px; }
+
+    /* ────────────────────────────────────────
+       SLIDE 9: Summary
+    ──────────────────────────────────────── */
+    #slide-9 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 56px 100px;
+    }
+
+    #slide-9 .s9-header { margin-bottom: 44px; }
+
+    #slide-9 .s9-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    #slide-9 .s9-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    #slide-9 .s9-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 20px 20px 16px;
+    }
+
+    #slide-9 .s9-card-title {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+
+    #slide-9 .s9-decision {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.35;
+    }
+
+    #slide-9 .s9-rationale {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    #slide-9 .s9-meta-row {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    #slide-9 .s9-meta-box {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    #slide-9 .s9-meta-stat {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    #slide-9 .s9-meta-text {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    #slide-9 .s9-meta-text strong {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    #slide-9 .s9-tradeoff {
+      width: 100%;
+      background: rgba(201,168,80,0.05);
+      border: 1px solid rgba(201,168,80,0.18);
+      border-left: 3px solid #C9A850;
+      border-radius: 6px;
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    #slide-9 .s9-tradeoff strong { color: #C9A850; font-weight: 500; }
+
+    #slide-9 .s9-summary-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      height: calc(100vh - 112px);
+    }
+
+    #slide-9 .s9-video {
+      flex: 1;
+      min-height: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #slide-9 .s9-video video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* ── Slide 2 accordion ── */
+    .s2-accordion { display: flex; flex-direction: column; }
+
+    .s2-acc-item {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .s2-acc-item:last-child { border-bottom: none; }
+
+    .s2-acc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .s2-acc-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .s2-acc-arrow {
+      font-size: 13px;
+      color: var(--accent);
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .s2-acc-item.open .s2-acc-arrow { transform: rotate(90deg); }
+
+    .s2-acc-preview {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      opacity: 0.55;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .s2-acc-item.open .s2-acc-preview { display: none; }
+
+    .s2-acc-body {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, margin-top 0.25s ease;
+      margin-top: 0;
+    }
+    .s2-acc-item.open .s2-acc-body {
+      max-height: 120px;
+      margin-top: 8px;
+    }
+
+
+    /* ────────────────────────────────────────
+       SLIDE 10: What's Next
+    ──────────────────────────────────────── */
+    #slide-10 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 64px 100px;
+    }
+    #slide-10 .s10-header { margin-bottom: 40px; }
+    #slide-10 .s10-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+    #slide-10 .s10-phases {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+    }
+    #slide-10 .s10-phase {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 32px 30px;
+      opacity: 0.5;
+    }
+    #slide-10 .s10-phase.s10-now {
+      border-color: var(--accent);
+      background: rgba(91,168,255,0.05);
+      opacity: 1;
+    }
+    #slide-10 .s10-phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 22px;
+    }
+    #slide-10 .s10-phase.s10-now .s10-phase-badge { color: var(--accent); }
+    #slide-10 .s10-phase-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    #slide-10 .s10-phase.s10-now .s10-phase-dot { background: var(--accent); }
+    #slide-10 .s10-phase-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.45rem;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.15;
+    }
+    #slide-10 .s10-items { display: flex; flex-direction: column; gap: 18px; }
+    #slide-10 .s10-item { display: flex; flex-direction: column; gap: 8px; }
+    #slide-10 .s10-item-title {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    #slide-10 .s10-item-sub {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #slide-10 .s10-pill {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #slide-10 .s10-pill-note {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      opacity: 0.6;
+      line-height: 1.5;
+    }
+    #slide-10 .s10-pill.s10-pill-yellow {
+      color: #C9A850;
+      border-color: rgba(201,168,80,0.4);
+      background: rgba(201,168,80,0.08);
+    }
+    #slide-10 .s10-pill.s10-pill-green {
+      color: #52B788;
+      border-color: rgba(82,183,136,0.4);
+      background: rgba(82,183,136,0.08);
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 11: Lifecycle Positioning
+    ──────────────────────────────────────── */
+    #slide-11 {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      padding: 64px 100px;
+    }
+    #slide-11 .s11-header { margin-bottom: 48px; }
+    #slide-11 .s11-subtitle {
+      margin-top: 16px;
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.8;
+      max-width: 680px;
+      opacity: 0.75;
+    }
+    #slide-11 .s11-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      margin-top: 10px;
+    }
+    #slide-11 .s11-flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      width: 100%;
+    }
+    #slide-11 .s11-stage {
+      display: flex;
+      flex-direction: column;
+      padding: 22px 22px 22px 24px;
+      border-top: 2px solid var(--border);
+      opacity: 0.45;
+    }
+    #slide-11 .s11-stage:first-child { border-radius: 0 0 0 8px; }
+    #slide-11 .s11-stage:last-child  { border-radius: 0 0 8px 0; }
+    #slide-11 .s11-stage.s11-partial { opacity: 0.7; }
+    #slide-11 .s11-stage.s11-focus {
+      border-top-color: var(--accent);
+      background: rgba(91,168,255,0.04);
+      opacity: 1;
+    }
+    #slide-11 .s11-stage.s11-warn {
+      border-top-color: #C9A850;
+      background: rgba(201,168,80,0.05);
+      opacity: 1;
+    }
+    #slide-11 .s11-stage.s11-warn .s11-stage-name { color: #C9A850; }
+    #slide-11 .s11-stage.s11-danger {
+      border-top-color: var(--accent-warm);
+      background: rgba(232,147,106,0.05);
+      opacity: 1;
+    }
+    #slide-11 .s11-stage.s11-danger .s11-stage-name { color: var(--accent-warm); }
+    #slide-11 .s11-stage-num {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      margin-bottom: 8px;
+    }
+    #slide-11 .s11-stage-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 10px;
+      line-height: 1.2;
+    }
+    #slide-11 .s11-stage.s11-focus .s11-stage-name { color: var(--accent); }
+    #slide-11 .s11-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    #slide-11 .s11-status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    #slide-11 .s11-stage-desc {
+      font-size: 12px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.65;
+    }
+    #slide-11 .s11-legend {
+      margin-top: 28px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    #slide-11 .s11-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      opacity: 0.7;
+    }
+    #slide-11 .s11-legend-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ────────────────────────────────────────
+       SLIDE 12: Ending
+    ──────────────────────────────────────── */
+    #slide-12 {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 120px;
+    }
+    #slide-12 .s12-rule {
+      width: 36px;
+      height: 1px;
+      background: var(--accent);
+      margin-bottom: 40px;
+    }
+    #slide-12 .s12-paras {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 580px;
+      margin-bottom: 52px;
+    }
+    #slide-12 .s12-paras p {
+      font-size: 15px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.85;
+    }
+    #slide-12 .s12-paras p.s12-last {
+      color: var(--text);
+      font-weight: 400;
+    }
+    #slide-12 .s12-byline {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      opacity: 0.4;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="deck">
+
+    <!-- ── Slide 1: Cover ── -->
+    <div class="slide active" id="slide-1">
+      <div class="s1-eyebrow">Ownership Validation · Crawl Stage</div>
+      <h1 class="s1-headline">Ownership Gap:<br>An Architectural Blind Spot</h1>
+      <p class="s1-subline">When we implement access certification, we assume every resource has an owner. In reality, that assumption breaks both access requests and compliance audits.</p>
+      <div class="s1-rule"></div>
+      <div class="s1-byline">Wuke Zhou · Senior Product Designer, Okta</div>
+      <div class="s1-meta">
+        <span class="s1-tag">Design Share</span>
+        <span class="s1-tag">Crawl Stage · Q1 2024</span>
+        <span class="s1-tag" id="s1-page-count">9 Pages</span>
+      </div>
+    </div>
+
+    <!-- ── Slide 2: Current Condition ── -->
+    <div class="slide" id="slide-2">
+
+      <div style="width:100%;display:flex;flex-direction:column;gap:0;">
+        <div class="s2-header">
+          <div class="eyebrow">Customer Pain</div>
+          <h2 class="s2-headline">G2K Customers Are Suffering From This Gap</h2>
+          <p class="s2-body" style="font-size:13px;font-style:italic;color:var(--text-secondary);opacity:0.7;margin-top:10px;">This isn't unique to Dell. Other G2K customers face the same problem.</p>
+        </div>
+        <div class="s2-cols">
+          <div>
+            <div class="s2-col-label">G2K in General</div>
+            <div class="s2-accordion">
+              <div class="s2-acc-item" onclick="this.classList.toggle('open')">
+                <div class="s2-acc-header">
+                  <span class="s2-acc-title">Manual &amp; Unscalable</span>
+                  <span class="s2-acc-arrow">›</span>
+                </div>
+                <div class="s2-acc-preview">Ownership is maintained through spreadsheets, mass emails…</div>
+                <div class="s2-acc-body">Ownership is maintained through spreadsheets, mass emails, and human follow-ups — a process that simply cannot keep up with hundreds of thousands of resources across multiple business units and source systems.</div>
+              </div>
+              <div class="s2-acc-item" onclick="this.classList.toggle('open')">
+                <div class="s2-acc-header">
+                  <span class="s2-acc-title">Stale &amp; Unreliable</span>
+                  <span class="s2-acc-arrow">›</span>
+                </div>
+                <div class="s2-acc-preview">Ownership records go out of date quickly…</div>
+                <div class="s2-acc-body">Ownership records go out of date quickly and owner response rates are low, resulting in wrong reviewers for downstream UARs — fueling rubber-stamping, privilege creep, and orphaned resources.</div>
+              </div>
+              <div class="s2-acc-item" onclick="this.classList.toggle('open')">
+                <div class="s2-acc-header">
+                  <span class="s2-acc-title">Non-Auditable &amp; Non-Compliant</span>
+                  <span class="s2-acc-arrow">›</span>
+                </div>
+                <div class="s2-acc-preview">CSVs and email screenshots are not tamper-proof…</div>
+                <div class="s2-acc-body">CSVs and email screenshots are not tamper-proof, making it hard to satisfy SOX, GDPR, HIPAA, and similar audits — and no OOB solution exists in the market today (SailPoint and Saviynt have the same gap).</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="s2-col-label">Take Dell as an example</div>
+            <div class="s2-pain-item">
+              <div class="s2-pain-num">300k</div>
+              <div class="s2-pain-text">Resources manually verified via Excel + Email per compliance cycle</div>
+            </div>
+            <div class="s2-pain-item">
+              <div class="s2-pain-num">30%</div>
+              <div class="s2-pain-text">Non-response rate due to information asymmetry</div>
+            </div>
+            <div class="s2-pain-item">
+              <div class="s2-pain-num">5–10%</div>
+              <div class="s2-pain-text">Ownership records require correction each cycle</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 3: Root Cause — Today's Design ── -->
+    <div class="slide" id="slide-3">
+      <div style="width:100%;display:flex;flex-direction:column;gap:0;">
+        <div class="s3-header">
+          <div class="eyebrow">Root Cause</div>
+          <h2 class="s3-headline">Object-Oriented System Can't Ask Intent-Based Questions</h2>
+        </div>
+        <div class="s3-cols">
+          <div>
+            <div class="s3-col-label">Today's Design</div>
+            <p class="s3-question" style="margin-bottom:4px;margin-top:16px;">Our campaign system only answers:</p>
+            <div class="s3-quote">"Who can access this resource?"</div>
+          </div>
+          <div>
+            <div class="s3-col-label">Access Certification — Current</div>
+            <div class="s3-gap-box" style="margin-top:16px;">
+              <div class="s3-gap-col-head">What it handles today</div>
+              <div class="s3-gap-item">What do you want to certify?</div>
+              <div class="s3-gap-item">Should this person have access to those resource?</div>
+              <div class="s3-gap-item">Or who has access to this resource?</div>
+              <div class="s3-gap-item">Who should decide that?</div>
+              <div class="s3-gap-item">What if people has access to resource that they shouldn't?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 3b: Root Cause — Updated Design ── -->
+    <div class="slide" id="slide-3b">
+      <div style="width:100%;display:flex;flex-direction:column;gap:0;">
+        <div class="s3-header">
+          <div class="eyebrow">Root Cause Cont.</div>
+          <h2 class="s3-headline">Object-Oriented System Can't Ask Intent-Based Questions</h2>
+        </div>
+        <div class="s3-cols">
+          <div>
+            <div class="s3-col-label">What's Missing</div>
+            <p class="s3-question" style="margin-bottom:4px;margin-top:16px;">The question we can't currently answer:</p>
+            <div class="s3-quote">"Who should decide who can access this resource?"</div>
+          </div>
+          <div>
+            <div class="s3-col-label">Ownership Validation — Needed</div>
+            <div class="s3-gap-box" style="margin-top:16px;">
+              <div class="s3-gap-col-head accent">What we need to support</div>
+              <div class="s3-gap-item">What's the intent of this campaign? Access or ownership?</div>
+              <div class="s3-gap-item">For G2K customer, how can we validate large scale resources?</div>
+              <div class="s3-gap-item">Who should decide that?</div>
+              <div class="s3-gap-item">What to do with orphaned resource?</div>
+              <div class="s3-gap-item">What if people has the wrong ownership?</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 4: Strategic Approach ── -->
+    <div class="slide" id="slide-4">
+      <div style="width:100%;display:flex;flex-direction:column;gap:0;">
+        <div class="s4-header">
+          <div class="eyebrow">Phased Strategy</div>
+          <h2 class="s4-headline">Addressing This Requires a Phased Strategy</h2>
+        </div>
+        <p class="s4-why">Ownership decisions are more complex than access decisions — power transfer is involved. I need to validate the multi-layer reviewer model before scaling, and deliver value to Dell quickly while building the long-term platform.</p>
+        <div class="s4-stages">
+          <div class="s4-stage active-stage">
+            <div class="s4-stage-badge">This Presentation</div>
+            <div class="s4-stage-name">🔵 Crawl</div>
+            <ul class="s4-stage-items">
+              <li>Solve Dell's immediate pain</li>
+              <li>Validate multi-layer reviewer model</li>
+              <li>Happy path + critical edge cases</li>
+            </ul>
+            <div class="s4-stage-timeline">Timeline: 2 weeks</div>
+          </div>
+          <div class="s4-stage">
+            <div class="s4-stage-badge">Q3</div>
+            <div class="s4-stage-name">Walk</div>
+            <ul class="s4-stage-items">
+              <li>Automation triggers</li>
+              <li>Broader IGA integration</li>
+              <li>Intent-based wizard guide builder</li>
+            </ul>
+            <div class="s4-stage-timeline">Timeline: TBD</div>
+          </div>
+          <div class="s4-stage">
+            <div class="s4-stage-badge">Q4</div>
+            <div class="s4-stage-name">Run</div>
+            <ul class="s4-stage-items">
+              <li>Unified Governance Framework</li>
+              <li>Intent-driven campaigns</li>
+              <li>Admin as governor, not creator</li>
+            </ul>
+            <div class="s4-stage-timeline">Timeline: TBD</div>
+          </div>
+        </div>
+        <div class="s4-focus-note">
+          <strong>This presentation focuses on:</strong> Crawl stage design decisions &amp; rationale — the structural choices that define how we build for scale.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 5: Three Challenges ── -->
+    <div class="slide" id="slide-5">
+      <div style="width:100%;display:flex;flex-direction:column;gap:0;">
+        <div class="s5-header">
+          <div class="eyebrow">Challenge Framing</div>
+          <h2 class="s5-headline">Design Decisions That Define Crawl Stage</h2>
+        </div>
+        <div class="s5-challenges">
+          <div class="s5-card">
+            <div class="s5-card-num">Challenge 01</div>
+            <div class="s5-card-title">Entry Point</div>
+            <div class="s5-card-question">"Where should users access this new feature?"</div>
+            <p class="s5-card-body">The integration point determines the mental model. Get it wrong and users won't find the feature — or worse, will have the wrong frame for it.</p>
+          </div>
+          <div class="s5-card">
+            <div class="s5-card-num">Challenge 02</div>
+            <div class="s5-card-title">Scalability</div>
+            <div class="s5-card-question">"How do we handle multiple resource types without poor UX?"</div>
+            <p class="s5-card-body">Access Cert was single-type. Ownership Cert requires multi-type support. A structural decision that must be made now before I compound technical debt.</p>
+          </div>
+          <div class="s5-card">
+            <div class="s5-card-num">Challenge 03</div>
+            <div class="s5-card-title">Reviewer Scope</div>
+            <div class="s5-card-question">"Who should be asked 'Are you the owner?' and what if they say no?"</div>
+            <p class="s5-card-body">Unlike access, ownership is power transfer. I designed a fallback mechanism that guarantees every resource ends up with an accountable owner — regardless of how many reviewers decline.</p>
+          </div>
+        </div>
+        <div class="s5-insight">
+          <strong>Each challenge has trade-offs.</strong> My solutions balance Dell's immediate needs with the long-term platform vision — and I'll walk through the reasoning on each.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 6: Decision #1 — Entry Point (INTERACTIVE) ── -->
+    <div class="slide" id="slide-6">
+      <div class="s6-header">
+        <div class="eyebrow">Entry Point</div>
+        <h2 class="s6-headline">Where Should Ownership Validation Live?</h2>
+      </div>
+      <div class="s6-body">
+        <div class="s6-left">
+          <div class="s6-option" id="s6-opt-a" onclick="s6Select('a')">
+            <div class="s6-opt-header">
+              <div class="s6-opt-label">Option A</div>
+            </div>
+            <div class="s6-opt-title">New Menu Item — "Create Ownership Campaign"</div>
+            <div class="s6-opt-pros-cons">
+              <div class="s6-pc-group">
+                <div class="s6-pc-label pros">Pros</div>
+                <div class="s6-pc-item">Highly visible, easy to find</div>
+              </div>
+              <div class="s6-pc-group">
+                <div class="s6-pc-label cons">Cons</div>
+                <div class="s6-pc-item">Mixed with Access Campaign — confusing mental model</div>
+              </div>
+            </div>
+          </div>
+          <div class="s6-option recommended" id="s6-opt-b" onclick="s6Select('b')">
+            <div class="s6-opt-header">
+              <div class="s6-opt-label">Option B</div>
+              <div class="s6-rec-badge">Recommended</div>
+            </div>
+            <div class="s6-opt-title">Button within existing Resource Campaign flow</div>
+            <div class="s6-opt-pros-cons">
+              <div class="s6-pc-group">
+                <div class="s6-pc-label pros">Pros</div>
+                <div class="s6-pc-item">Unified "Resource" concept · foundation for future campaign types · mid-level effort</div>
+              </div>
+              <div class="s6-pc-group">
+                <div class="s6-pc-label cons">Cons</div>
+                <div class="s6-pc-item">Less discoverable — requires user education</div>
+              </div>
+            </div>
+          </div>
+          <div class="s6-option" id="s6-opt-c" onclick="s6Select('c')">
+            <div class="s6-opt-header">
+              <div class="s6-opt-label">Option C</div>
+            </div>
+            <div class="s6-opt-title">Separate Tab / Independent Menu</div>
+            <div class="s6-opt-pros-cons">
+              <div class="s6-pc-group">
+                <div class="s6-pc-label pros">Pros</div>
+                <div class="s6-pc-item">Complete isolation from access flows</div>
+              </div>
+              <div class="s6-pc-group">
+                <div class="s6-pc-label cons">Cons</div>
+                <div class="s6-pc-item">Fragments "Resource" concept · mental model fragmentation</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s6-right">
+          <div id="s6-placeholder" class="s6-right-placeholder">
+            <div class="s6-ph-icon">←</div>
+            <div class="s6-ph-text">Select an option to see the rationale</div>
+          </div>
+          <div id="s6-rationale-a" class="s6-rationale">
+            <div class="s6-rat-head">Why Option A falls short</div>
+            <div class="s6-screenshot" onclick="s6OpenLightbox(this)">
+              <img src="images/entry point option a.png" alt="Option A screenshot">
+              <div class="s6-scr-placeholder">
+                <div class="s6-scr-placeholder-icon">⊞</div>
+                <div class="s6-scr-placeholder-text">Screenshot</div>
+              </div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 01</div>
+              <div class="s6-rat-item-title">Mental model fragmentation</div>
+              <div class="s6-rat-item-body">Creating a separate "Ownership Campaign" entry point breaks the "Resource" concept. Users will need to learn two separate mental models for what is fundamentally the same object.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 02</div>
+              <div class="s6-rat-item-title">Doesn't scale to future intent types</div>
+              <div class="s6-rat-item-body">As we add Smart Review, Metadata Validation, and Policy Composition, a separate entry per intent type compounds the navigation problem.</div>
+            </div>
+          </div>
+          <div id="s6-rationale-b" class="s6-rationale">
+            <div class="s6-rat-head">Why I Chose Option B</div>
+            <div class="s6-tradeoff">
+              <strong>Trade-off I accepted:</strong> Less obvious that this is a new feature → requires user education and clear in-product documentation at the entry point.
+            </div>
+            <div class="s6-scr-carousel">
+              <div class="s6-screenshot s6-scr-slide active" onclick="s6OpenLightbox(this)">
+                <img src="images/entry point option b.png" alt="Option B screenshot">
+              </div>
+              <div class="s6-screenshot s6-scr-slide" onclick="s6OpenLightbox(this)">
+                <img src="images/campaign type.png" alt="Campaign type screenshot">
+              </div>
+              <div class="s6-scr-dots">
+                <span class="s6-scr-dot active" onclick="s6CarouselGo(this,0)">1</span>
+                <span class="s6-scr-dot" onclick="s6CarouselGo(this,1)">2</span>
+              </div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Rationale 01</div>
+              <div class="s6-rat-item-title">Mental Model Alignment</div>
+              <div class="s6-rat-item-body">Users already see "Resource" as the atomic unit encompassing both "who uses" and "who manages." Option B respects that model instead of splitting it.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Rationale 02</div>
+              <div class="s6-rat-item-title">Foundation for Future Intent Types</div>
+              <div class="s6-rat-item-body">I structured Option B to scale as we introduce Smart Review, Metadata Validation, and Policy Composition campaigns. The organizing principle: aggregate by <em>intent</em>, not by <em>object</em>.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Rationale 03</div>
+              <div class="s6-rat-item-title">Adoption Efficiency</div>
+              <div class="s6-rat-item-body">Users don't need to learn new navigation patterns. Existing admin muscle memory is preserved.</div>
+            </div>
+          </div>
+          <div id="s6-rationale-c" class="s6-rationale">
+            <div class="s6-rat-head">Why Option C falls short</div>
+            <div class="s6-screenshot" onclick="s6OpenLightbox(this)">
+              <img src="images/entry point option c.png" alt="Option C screenshot">
+              <div class="s6-scr-placeholder">
+                <div class="s6-scr-placeholder-icon">⊞</div>
+                <div class="s6-scr-placeholder-text">Screenshot</div>
+              </div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 01</div>
+              <div class="s6-rat-item-title">Fragments the "Resource" concept</div>
+              <div class="s6-rat-item-body">Separating ownership validation from resource campaigns creates two competing places where resource governance happens. This is the worst outcome for mental model clarity.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 02</div>
+              <div class="s6-rat-item-title">Creates long-term platform debt</div>
+              <div class="s6-rat-item-body">A fully separate flow means any future unification of campaign types requires a navigation redesign. We'd be building toward a dead end.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightbox overlay for slide 6 screenshots -->
+    <div id="s6-lightbox" onclick="s6CloseLightbox()">
+      <span id="s6-lightbox-close" onclick="s6CloseLightbox()">×</span>
+      <img id="s6-lightbox-img" src="" alt="">
+    </div>
+
+    <!-- ── Slide 7: Decision #2 — Scalability (The Problem) ── -->
+    <div class="slide" id="slide-7">
+      <div class="s7-header">
+        <div class="eyebrow">Scalability</div>
+        <h2 class="s7-headline">How to Handle Multiple Resource Types Without Breaking UX?</h2>
+      </div>
+      <div class="s7-problem-layout">
+        <div class="s7-problem-card">
+          <div class="s7-left-head">The Problem</div>
+          <p class="s7-problem-body"><strong>Access Certification</strong> only handles a single resource type at a time in resource campaign.</p>
+          <p class="s7-problem-body"><strong>Ownership Validation</strong> requires multi-type support — Application, group, collection, AI Agent, Service Accounts and more as the product grows.</p>
+          <p class="s7-problem-body">If I don't make the right structural decision now, UX degrades as resource types grow and technical debt compounds.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 7b: Decision #2 — Scalability (Solutions) ── -->
+    <div class="slide" id="slide-7b">
+      <div class="s6-header">
+        <div class="eyebrow">Scalability Cont.</div>
+        <h2 class="s6-headline">How to Handle Multiple Resource Types Without Breaking UX?</h2>
+      </div>
+      <div class="s6-body">
+        <div class="s6-left">
+          <div class="s6-option" id="s7b-opt-a" onclick="s7bSelect('a')">
+            <div class="s6-opt-header">
+              <div class="s6-opt-label">Solution A</div>
+            </div>
+            <div class="s6-opt-title">Stack Layout</div>
+            <div class="s6-opt-pros-cons">
+              <div class="s6-pc-group">
+                <div class="s6-pc-label pros">Pros</div>
+                <div class="s6-pc-item">Zero learning curve</div>
+              </div>
+              <div class="s6-pc-group">
+                <div class="s6-pc-label cons">Cons</div>
+                <div class="s6-pc-item">Very long &amp; tedious at scale · no ceiling</div>
+              </div>
+            </div>
+          </div>
+          <div class="s6-option recommended" id="s7b-opt-b" onclick="s7bSelect('b')">
+            <div class="s6-opt-header">
+              <div class="s6-opt-label">Solution B</div>
+              <div class="s6-rec-badge">Recommended</div>
+            </div>
+            <div class="s6-opt-title">Tabbed Card Interface</div>
+            <div class="s6-opt-pros-cons">
+              <div class="s6-pc-group">
+                <div class="s6-pc-label pros">Pros</div>
+                <div class="s6-pc-item">Single-screen density · infinite types · clear hierarchy</div>
+              </div>
+              <div class="s6-pc-group">
+                <div class="s6-pc-label cons">Cons</div>
+                <div class="s6-pc-item">Medium dev complexity</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s6-right">
+          <div id="s7b-placeholder" class="s6-right-placeholder">
+            <div class="s6-ph-icon">←</div>
+            <div class="s6-ph-text">Select a solution to see the rationale</div>
+          </div>
+          <div id="s7b-rationale-a" class="s6-rationale">
+            <div class="s6-rat-head">Why Solution A falls short</div>
+            <div class="s6-screenshot" onclick="s6OpenLightbox(this)">
+              <img src="images/stack layout expand.png" alt="Solution A screenshot">
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 01</div>
+              <div class="s6-rat-item-title">No upper bound on page length</div>
+              <div class="s6-rat-item-body">Each new resource type appends a new section. With 5+ types, the page becomes unwieldy — reviewers lose context and completion rates drop.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Problem 02</div>
+              <div class="s6-rat-item-title">Structural dead end</div>
+              <div class="s6-rat-item-body">Retrofitting a better layout after shipping means data migration, user re-education, and a redesign. The cost grows with every resource type added.</div>
+            </div>
+          </div>
+          <div id="s7b-rationale-b" class="s6-rationale">
+            <div class="s6-rat-head">Why I Chose Solution B</div>
+            <div class="s6-tradeoff">
+              <strong>Trade-off I accepted:</strong> Medium development complexity upfront, but exponentially cheaper than retrofitting a stack layout later.
+            </div>
+            <div class="s6-screenshot" onclick="s6OpenLightbox(this)">
+              <img src="images/tabbed card interface.png" alt="Solution B screenshot">
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Rationale 01</div>
+              <div class="s6-rat-item-title">Bounded density</div>
+              <div class="s6-rat-item-body">One tab = one resource type. The page never gets longer regardless of how many types are added. Reviewers always see exactly what they need.</div>
+            </div>
+            <div class="s6-rat-item">
+              <div class="s6-rat-item-num">Rationale 02</div>
+              <div class="s6-rat-item-title">Structural foundation for scale</div>
+              <div class="s6-rat-item-body">Adding a new resource type is additive — just add a tab. Zero redesign cost. Worth the upfront effort to get the container right before content fills it.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Slide 8: Decision #3 — Reviewer Scope ── -->
+    <div class="slide" id="slide-8">
+      <div class="s8-header">
+        <div class="eyebrow">Reviewer Scope</div>
+        <h2 class="s8-headline">Why Ownership Requires Enforced Fallback Mechanism</h2>
+      </div>
+      <div class="s8-left">
+        <table class="s8-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th class="access-head">Access Certification</th>
+              <th class="ownership-head">Ownership Validation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="row-label">Revoke Result</td>
+              <td>User immediately loses access. <strong>Low-stakes</strong> — usually recoverable in the next review cycle.</td>
+              <td>Owner designation is removed. Resource enters a <strong>"no owner" state</strong> — governance breaks until resolved.</td>
+            </tr>
+            <tr>
+              <td class="row-label">Reassign Result</td>
+              <td>Review task is passed to the next reviewer. <strong>Access itself is unchanged</strong> — only who certifies it changes.</td>
+              <td>Ownership is <strong>actually transferred</strong> to another person. The new resource owner now controls all access approvals and compliance reviews for the resource.</td>
+            </tr>
+            <tr class="risk-row">
+              <td class="row-label">Resource Status</td>
+              <td>Resource stays <strong>fully operational</strong>. Other users' access is completely unaffected.</td>
+              <td>
+                <ul style="margin:0;padding-left:16px;display:flex;flex-direction:column;gap:6px;">
+                  <li><strong>Immediate:</strong> Access requests have no one to approve them. Compliance cycles have no one to run them. Both workflows break.</li>
+                  <li><strong>Systemic:</strong> Unowned resources accumulate at scale — expanding the attack surface and eroding company-wide security posture.</li>
+                </ul>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Slide 8b: Reviewer Scope Cont. ── -->
+    <div class="slide" id="slide-8b">
+      <div class="s8-header">
+        <div class="eyebrow">Reviewer Scope Cont.</div>
+        <h2 class="s8-headline">How Different Reviewer Type Change Reviewer Flow's Decision Path</h2>
+      </div>
+      <div class="s8-paths">
+        <div class="s8-path mvp-path">
+          <div class="s8-path-num">1</div>
+          <div class="s8-path-content">
+            <div class="s8-path-label">Resource Owner</div>
+            <div class="s8-path-title">"Are you the owner of this resource?"</div>
+            <div class="s8-path-desc">Yes → End. No → Specify correct owner and continue to Path 2.</div>
+          </div>
+        </div>
+        <div class="s8-path mvp-path">
+          <div class="s8-path-num">2</div>
+          <div class="s8-path-content">
+            <div class="s8-path-label">Reassigned Owner</div>
+            <div class="s8-path-title">"Are you correctly assigned as owner?"</div>
+            <div class="s8-path-desc">Anti-loop protection. Yes → End. No → Escalate to fallback reviewer. Cannot loop back to Path 1.</div>
+          </div>
+        </div>
+        <div class="s8-path mvp-path">
+          <div class="s8-path-num">3</div>
+          <div class="s8-path-content">
+            <div class="s8-path-label">Fallback Reviewer (Campaign Creator / IAM Admin / GRC Analyst)</div>
+            <div class="s8-path-title">"Find and assign the actual owner."</div>
+            <div class="s8-path-desc">High-authority reviewer. MUST complete — no further escalation possible. Terminates the chain.</div>
+          </div>
+        </div>
+        <div class="s8-path mvp-path">
+          <div class="s8-path-num">4</div>
+          <div class="s8-path-content">
+            <div class="s8-path-label">Manager Audit</div>
+            <div class="s8-path-title">"Who is the owner of this resource?"</div>
+            <div class="s8-path-desc">Third-party attestation. Unlike Path 1 where the owner self-attests, the manager independently verifies ownership from the outside — providing an external audit layer.</div>
+          </div>
+        </div>
+      </div>
+      <div class="s8-principle">
+        <strong>Design Principle:</strong> I structured the paths around two reviewer types — high-intent (Paths 1–2, directly involved) and high-authority (Paths 3–4, final decision makers) — so that every resource <em>must</em> have an owner at the end of the chain.
+      </div>
+    </div>
+
+    <!-- ── Slide 9b: Reviewer Scope — Exploration ── -->
+    <div class="slide" id="slide-9b">
+      <div class="s9b-header">
+        <div class="eyebrow">Reviewer Scope · Design Exploration</div>
+        <h2 class="s9b-headline">Design Exploration on Reviewer Flow</h2>
+      </div>
+      <p class="s9b-intro">Once I mapped out how <strong>different combinations of reviewer identity and action</strong> affect the outcome, I explored four distinct reviewer flow designs — and evaluated each against the dimensions that matter most for this product.</p>
+      <table class="s9b-table">
+        <thead>
+          <tr>
+            <th>Exploration</th>
+            <th>Simplicity</th>
+            <th>Speed</th>
+            <th>Safety</th>
+            <th>Effort to Eng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="s9b-row s9b-rec">
+            <td><svg class="s9b-chevron" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>My Recommendation</td>
+            <td><span class="v-pos">High</span></td>
+            <td><span class="v-pos">High</span></td>
+            <td><span class="v-mid">Mid</span></td>
+            <td><span class="v-pos">Extra Low</span></td>
+          </tr>
+          <tr class="s9b-detail">
+            <td colspan="5">
+              <div class="s9b-detail-inner">
+                <div class="s9b-detail-section s9b-detail-desc">
+                  <div class="s9b-detail-label">Description</div>
+                  <p>Built on the assumption that resource owners represent the majority of reviewers, the solution is designed to help users make the quickest ownership decision possible.</p>
+                </div>
+                <div class="s9b-detail-section s9b-detail-pros">
+                  <div class="s9b-detail-label">Pros</div>
+                  <ul>
+                    <li>Surfaces only the minimum information needed to judge ownership — easier to understand and faster to act on.</li>
+                    <li>Reduces clicks; provides help text for contextual understanding.</li>
+                    <li>Highly backward compatible, yet has enough room to grow further.</li>
+                  </ul>
+                </div>
+                <div class="s9b-detail-section s9b-detail-cons">
+                  <div class="s9b-detail-label">Cons</div>
+                  <ul>
+                    <li>A middle-ground solution — conservative by design.</li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr class="s9b-row">
+            <td><svg class="s9b-chevron" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>2-Step Verification</td>
+            <td><span class="v-mid">Mid</span></td>
+            <td><span class="v-mid">Mid</span></td>
+            <td><span class="v-mid">Mid–High</span></td>
+            <td><span class="v-mid">Mid</span></td>
+          </tr>
+          <tr class="s9b-detail">
+            <td colspan="5">
+              <div class="s9b-detail-inner">
+                <div class="s9b-detail-section s9b-detail-desc">
+                  <div class="s9b-detail-label">Description</div>
+                  <p>A two-step process where users confirm ownership before proceeding to access review.</p>
+                </div>
+                <div class="s9b-detail-section s9b-detail-pros">
+                  <div class="s9b-detail-label">Pros</div>
+                  <ul>
+                    <li>User understands better what's the consequence of the action.</li>
+                    <li>User knows clearly this is not an access certification campaign.</li>
+                    <li>A sandbox stage becomes a middle ground for resource.</li>
+                    <li>Less chance to make mistake.</li>
+                  </ul>
+                </div>
+                <div class="s9b-detail-section s9b-detail-cons">
+                  <div class="s9b-detail-label">Cons</div>
+                  <ul>
+                    <li>Extra clicks means slow in action.</li>
+                    <li>It's adding cognitive load/decision overload.</li>
+                    <li>In the majority of the case, resource owner won't have problem claim their ownership.</li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr class="s9b-row">
+            <td><svg class="s9b-chevron" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Hierarchical Authority</td>
+            <td><span class="v-neg">Low</span></td>
+            <td><span class="v-neg">Extra Low</span></td>
+            <td><span class="v-pos">Extra High</span></td>
+            <td><span class="v-neg">High</span></td>
+          </tr>
+          <tr class="s9b-detail">
+            <td colspan="5">
+              <div class="s9b-detail-inner">
+                <div class="s9b-detail-section s9b-detail-desc">
+                  <div class="s9b-detail-label">Description</div>
+                  <p>Maximally enforces resource ownership by passing accountability up a fixed authority chain until someone claims it.</p>
+                </div>
+                <div class="s9b-detail-section s9b-detail-pros">
+                  <div class="s9b-detail-label">Pros</div>
+                  <ul>
+                    <li>Clear chain of power to pass on.</li>
+                    <li>Compliance audit friendly.</li>
+                    <li>No need to think about reassign anymore.</li>
+                  </ul>
+                </div>
+                <div class="s9b-detail-section s9b-detail-cons">
+                  <div class="s9b-detail-label">Cons</div>
+                  <ul>
+                    <li>Can potentially escalate all the way to the CEO — an outcome admins are rightfully concerned about.</li>
+                    <li>Slows down the entire process; higher likelihood that some reviewers never respond.</li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr class="s9b-row">
+            <td><svg class="s9b-chevron" viewBox="0 0 10 10" fill="none"><path d="M3 2l4 3-4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Parallel Consensus</td>
+            <td><span class="v-neg">Low</span></td>
+            <td><span class="v-mid">Mid</span></td>
+            <td><span class="v-pos">High</span></td>
+            <td><span class="v-mid">Mid</span></td>
+          </tr>
+          <tr class="s9b-detail">
+            <td colspan="5">
+              <div class="s9b-detail-inner">
+                <div class="s9b-detail-section s9b-detail-desc">
+                  <div class="s9b-detail-label">Description</div>
+                  <p>Requires simultaneous sign-off from two independent reviewers before ownership is confirmed.</p>
+                </div>
+                <div class="s9b-detail-section s9b-detail-pros">
+                  <div class="s9b-detail-label">Pros</div>
+                  <ul>
+                    <li>Requires agreement from both reviewers, reducing single-point-of-failure ownership claims.</li>
+                    <li>Both reviewers work in a single shared view — progress is visible to both sides.</li>
+                  </ul>
+                </div>
+                <div class="s9b-detail-section s9b-detail-cons">
+                  <div class="s9b-detail-label">Cons</div>
+                  <ul>
+                    <li>May surface confidential resource information to a second-level reviewer who doesn't have the appropriate clearance.</li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Slide 9: Summary ── -->
+    <div class="slide" id="slide-9">
+      <div class="s9-summary-wrap">
+        <div class="s9-header">
+          <div class="eyebrow">Crawl Summary</div>
+          <h2 class="s9-headline">End-to-End Walkthrough</h2>
+        </div>
+        <div class="s9-video">
+          <video controls>
+            <source src="ownership validation walkthrough 1.mov" type="video/mp4">
+          </video>
+        </div>
+        <div class="s9-tradeoff">
+          <strong>Key Trade-off:</strong> I chose to invest in structural foundation now — accepting medium dev effort upfront — to unlock both Dell's immediate need and long-term platform scalability. The cost of getting the container wrong compounds with every resource type we add.
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── Slide 10: What's Next ── -->
+    <div class="slide" id="slide-10">
+      <div class="s10-header">
+        <div class="eyebrow">What's Next</div>
+        <h2 class="s10-headline">Crawl → Walk → Run</h2>
+      </div>
+      <div class="s10-phases">
+
+        <div class="s10-phase">
+          <div class="s10-phase-badge"><span class="s10-phase-dot"></span> Done · Crawl</div>
+          <div class="s10-phase-title">Foundation</div>
+          <div class="s10-items">
+            <div class="s10-item">
+              <div class="s10-item-title">Ownership Validation Campaign MVP Implementation</div>
+              <div class="s10-item-sub">
+                <span class="s10-pill s10-pill-yellow">On Hold</span>
+              </div>
+            </div>
+            <div class="s10-item">
+              <div class="s10-item-title">Campaign Preview Feature Design</div>
+              <div class="s10-item-sub">
+                <span class="s10-pill s10-pill-green">On Going</span>
+              </div>
+            </div>
+            <div class="s10-item">
+              <div class="s10-item-title">EPD Partner Onboarding — Phase Plan</div>
+              <div class="s10-item-sub">
+                <span class="s10-pill s10-pill-green">On Going</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s10-phase s10-now">
+          <div class="s10-phase-badge"><span class="s10-phase-dot"></span> Next · Walk</div>
+          <div class="s10-phase-title">Restructure Campaign IA</div>
+          <div class="s10-items">
+            <div class="s10-item">
+              <div class="s10-item-title">Restructure Access Cert IA</div>
+              <div class="s10-pill-note">Consolidate all campaign types into a unified entry point</div>
+            </div>
+            <div class="s10-item">
+              <div class="s10-item-title">Terminology Unification</div>
+            </div>
+            <div class="s10-item">
+              <div class="s10-item-title">Metadata Campaign Planning</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="s10-phase">
+          <div class="s10-phase-badge"><span class="s10-phase-dot"></span> Future · Run</div>
+          <div class="s10-phase-title">Governance Health</div>
+          <div class="s10-items">
+            <div class="s10-item">
+              <div class="s10-item-title">Build a Governance Health Monitoring Platform</div>
+              <div class="s10-pill-note">Continually work on the current visionary prototypes to redesign both admin and reviewer experience</div>
+            </div>
+            <div class="s10-item">
+              <div class="s10-item-title">Admin as Guardian of Enterprise Security</div>
+              <div class="s10-pill-note">Upgrade from campaign builder to security guardian</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Slide 11: Lifecycle Positioning ── -->
+    <div class="slide" id="slide-11">
+      <div class="s11-header">
+        <div class="eyebrow">Zooming Out</div>
+        <h2 class="s11-headline">Where OA Sits in the Governance Lifecycle</h2>
+        <p class="s11-subtitle">Ownership has a lifecycle. OA is the attestation layer — but it has become the only layer that works. I chose to keep Assign, Discover, and Report out of this cycle. They're separate product investments — not mine to own. But seeing them clearly is what keeps my current scope honest, and my Run-stage thinking grounded.</p>
+      </div>
+      <div class="s11-flow">
+
+        <div class="s11-stage s11-warn">
+          <div class="s11-stage-num">01</div>
+          <div class="s11-stage-name">Assign</div>
+          <div class="s11-status" style="color: #C9A850;">
+            <span class="s11-status-dot" style="background: #C9A850;"></span>Critical Gap
+          </div>
+          <div class="s11-stage-desc">The compliance team identified that Okta has no effective central tool to manage ownership assignment. All downstream stages are built on this unstable foundation. Recommendation: deepen UX research into the current assign process and build a lightweight solution at minimum.</div>
+        </div>
+
+        <div class="s11-stage s11-partial">
+          <div class="s11-stage-num">02</div>
+          <div class="s11-stage-name">Discover</div>
+          <div class="s11-status" style="color: var(--text-secondary);">
+            <span class="s11-status-dot" style="background: var(--text-secondary);"></span>View Only
+          </div>
+          <div class="s11-stage-desc">Resource Inventory has been built as a view-only page with potential to scale across resource types. Recommendation: explore Inventory as an intermediary platform — surfacing resources with missing or invalid owners and notifying the relevant stakeholders to take action.</div>
+        </div>
+
+        <div class="s11-stage">
+          <div class="s11-stage-num">03</div>
+          <div class="s11-stage-name">Attest (OA)</div>
+          <div class="s11-status" style="color: var(--accent);">
+            <span class="s11-status-dot" style="background: var(--accent);"></span>Scope Expanding
+          </div>
+          <div class="s11-stage-desc">The access certification team is currently owning both attestation and remediation. Engineering has raised whether this fundamentally shifts the problem we are solving — what began as a campaign flow has grown into a broader ownership governance challenge.</div>
+        </div>
+
+        <div class="s11-stage s11-danger">
+          <div class="s11-stage-num">04</div>
+          <div class="s11-stage-name">Remediate</div>
+          <div class="s11-status" style="color: var(--accent-warm);">
+            <span class="s11-status-dot" style="background: var(--accent-warm);"></span>Scope Exceeded
+          </div>
+          <div class="s11-stage-desc">Since the team has already taken responsibility for remediation, the case for Governance Health becomes stronger — not just as a future vision, but as the natural direction this work is already heading toward.</div>
+        </div>
+
+        <div class="s11-stage">
+          <div class="s11-stage-num">05</div>
+          <div class="s11-stage-name">Report</div>
+          <div class="s11-status" style="color: var(--text-secondary); opacity: 0.5;">
+            <span class="s11-status-dot" style="background: var(--text-secondary); opacity: 0.5;"></span>Not in MVP
+          </div>
+          <div class="s11-stage-desc">Governance health reporting is out of scope for the current release.</div>
+        </div>
+
+      </div>
+      <div class="s11-legend">
+        <div class="s11-legend-item"><span class="s11-legend-dot" style="background: #C9A850;"></span>Gap — no owner assignment mechanism</div>
+        <div class="s11-legend-item"><span class="s11-legend-dot" style="background: var(--text-secondary);"></span>Planned / in roadmap</div>
+        <div class="s11-legend-item"><span class="s11-legend-dot" style="background: var(--accent);"></span>Current crawl scope</div>
+        <div class="s11-legend-item"><span class="s11-legend-dot" style="background: var(--accent-warm);"></span>Gap — no remediation path</div>
+        <div class="s11-legend-item"><span class="s11-legend-dot" style="background: var(--text-secondary); opacity: 0.3;"></span>Out of current scope</div>
+      </div>
+    </div>
+
+    <!-- ── Slide 12: Ending ── -->
+    <div class="slide" id="slide-12">
+      <div class="s12-rule"></div>
+      <div class="s12-paras">
+        <p>If you still remember, the ask was to design the OA Campaign flow.</p>
+        <p>What I've achieved within a month is a different product mental model, a staged path forward, and a team that has language to talk about campaigns that didn't exist before.</p>
+        <p class="s12-last">That shift — from flow to framing — is the work I care most about.</p>
+      </div>
+      <div class="s12-byline">Wuke Zhou · Senior Product Designer, Okta</div>
+    </div>
+
+  </div><!-- /#deck -->
+
+  <!-- Navigation -->
+  <button id="btn-prev" onclick="go(-1)" aria-label="Previous slide">&#8592;</button>
+  <button id="btn-next" onclick="go(1)" aria-label="Next slide">&#8594;</button>
+  <div id="counter"></div>
+  <div id="pagination"></div>
+  <div id="progress"></div>
+  <div id="edit-badge">E · Edit</div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total  = slides.length;
+    let current  = 0;
+
+    // Build pagination dots
+    const pagination = document.getElementById('pagination');
+    slides.forEach((_, i) => {
+      const num = document.createElement('div');
+      num.className = 'pag-num' + (i === 0 ? ' active' : '');
+      num.textContent = i + 1;
+      num.addEventListener('click', () => goTo(i));
+      pagination.appendChild(num);
+    });
+
+    function updateUI() {
+      document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+      document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+      document.querySelectorAll('.pag-num').forEach((num, i) => {
+        num.classList.toggle('active', i === current);
+      });
+    }
+
+    function goTo(index) {
+      slides[current].classList.remove('active');
+      current = Math.max(0, Math.min(total - 1, index));
+      slides[current].classList.add('active');
+      updateUI();
+    }
+
+    function go(delta) { goTo(current + delta); }
+
+    document.addEventListener('keydown', e => {
+      if (e.target.isContentEditable) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+      if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+    });
+
+    // Init
+    updateUI();
+    document.getElementById('s1-page-count').textContent = total + ' Pages';
+  </script>
+
+  <script>
+    // ── Slide 6: Entry Point interactive options ──
+    function s6Select(opt) {
+      ['a','b','c'].forEach(o => {
+        document.getElementById('s6-opt-' + o).classList.remove('selected');
+        const rat = document.getElementById('s6-rationale-' + o);
+        rat.classList.remove('visible');
+      });
+      document.getElementById('s6-placeholder').style.display = 'none';
+      document.getElementById('s6-opt-' + opt).classList.add('selected');
+      const rat = document.getElementById('s6-rationale-' + opt);
+      rat.classList.add('visible');
+    }
+
+    function s6CarouselGo(dot, index) {
+      const carousel = dot.closest('.s6-scr-carousel');
+      carousel.querySelectorAll('.s6-scr-slide').forEach((s, i) => s.classList.toggle('active', i === index));
+      carousel.querySelectorAll('.s6-scr-dot').forEach((d, i) => d.classList.toggle('active', i === index));
+    }
+
+    function s6OpenLightbox(el) {
+      const img = el.querySelector('img');
+      const src = img ? img.getAttribute('src') : '';
+      if (!src) return;
+      document.getElementById('s6-lightbox-img').src = src;
+      document.getElementById('s6-lightbox').classList.add('open');
+    }
+    function s6CloseLightbox() {
+      document.getElementById('s6-lightbox').classList.remove('open');
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') s6CloseLightbox();
+    });
+
+    // ── Slide 7b: Scalability solutions ──
+    function s7bSelect(opt) {
+      ['a','b'].forEach(o => {
+        document.getElementById('s7b-opt-' + o).classList.remove('selected');
+        const rat = document.getElementById('s7b-rationale-' + o);
+        rat.classList.remove('visible');
+      });
+      document.getElementById('s7b-placeholder').style.display = 'none';
+      document.getElementById('s7b-opt-' + opt).classList.add('selected');
+      document.getElementById('s7b-rationale-' + opt).classList.add('visible');
+    }
+
+    // ── Slide 9b: Accordion ──
+    document.querySelectorAll('#slide-9b .s9b-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const detail = row.nextElementSibling;
+        const isOpen = detail.classList.contains('open');
+        document.querySelectorAll('#slide-9b .s9b-detail').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('#slide-9b .s9b-row').forEach(r => r.classList.remove('open'));
+        if (!isOpen) {
+          detail.classList.add('open');
+          row.classList.add('open');
+        }
+      });
+    });
+  </script>
+
+  <script>
+    // ── Edit mode ──
+    let editMode = false;
+    const INLINE_TAGS = new Set(['STRONG', 'EM', 'SPAN', 'A', 'CODE', 'B', 'I', 'U', 'MARK', 'BR']);
+
+    function getEditableEls() {
+      return [...document.querySelectorAll('.slide div, .slide span, .slide li, .slide h1, .slide h2, .slide h3, .slide h4, .slide p')]
+        .filter(el => {
+          if (!el.textContent.trim()) return false;
+          if (el.hasAttribute('onclick')) return false;
+          const allInline = [...el.children].every(c => INLINE_TAGS.has(c.tagName));
+          return el.childElementCount === 0 || allInline;
+        });
+    }
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      getEditableEls().forEach(el => {
+        if (editMode) {
+          el.contentEditable = 'true';
+        } else {
+          el.removeAttribute('contenteditable');
+        }
+      });
+      const badge = document.getElementById('edit-badge');
+      badge.textContent = editMode ? '✦ Editing' : 'E · Edit';
+      badge.classList.toggle('active', editMode);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'e' && !e.ctrlKey && !e.metaKey && !e.target.isContentEditable) {
+        toggleEditMode();
+      }
+    });
+  </script>
+
+</body>
+</html>
